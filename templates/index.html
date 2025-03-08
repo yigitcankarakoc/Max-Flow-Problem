@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Max Flow Problem</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        .container {
+            max-width: 1200px;
+            margin-top: 30px;
+            margin-bottom: 50px;
+        }
+        #graph-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #graph-image {
+            max-width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .node-row, .arc-row {
+            margin-bottom: 10px;
+        }
+        .results {
+            margin-top: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        #error-message {
+            display: none;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .loading {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .math-section {
+            margin-top: 50px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        .math-section h3 {
+            margin-bottom: 20px;
+        }
+        .math-section p {
+            text-align: justify;
+        }
+        .equation-box {
+            padding: 15px;
+            margin: 15px 0;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .constraint-table {
+            width: 100%;
+            margin: 15px 0;
+        }
+        .constraint-table th {
+            text-align: center;
+        }
+        #problem-formulation {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mb-4">Max Flow Problem Solver</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Network Definition</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6>Nodes</h6>
+                        <div id="nodes-container">
+                            <div class="node-row d-flex">
+                                <input type="text" class="form-control node-input" placeholder="Node name">
+                                <button class="btn btn-sm btn-danger ms-2 remove-node" style="display:none;">✕</button>
+                            </div>
+                        </div>
+                        <button id="add-node" class="btn btn-sm btn-primary mt-2">Add Node</button>
+                        
+                        <h6 class="mt-4">Arcs</h6>
+                        <div id="arcs-container">
+                            <div class="arc-row d-flex">
+                                <select class="form-select source-select me-2"></select>
+                                <select class="form-select target-select me-2"></select>
+                                <input type="number" class="form-control capacity-input" placeholder="Capacity" min="0">
+                                <button class="btn btn-sm btn-danger ms-2 remove-arc" style="display:none;">✕</button>
+                            </div>
+                        </div>
+                        <button id="add-arc" class="btn btn-sm btn-primary mt-2">Add Arc</button>
+                        
+                        <h6 class="mt-4">Source and Sink</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label>Source Node</label>
+                                <select id="source-node" class="form-select"></select>
+                            </div>
+                            <div class="col-md-6">
+                                <label>Sink Node</label>
+                                <select id="sink-node" class="form-select"></select>
+                            </div>
+                        </div>
+                        
+                        <button id="solve-button" class="btn btn-success mt-4">Solve Max Flow</button>
+                        <div id="error-message"></div>
+                        <div class="loading" id="loading">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Solving the max flow problem...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div id="graph-container">
+                    <h5>Network Visualization</h5>
+                    <div id="initial-graph">
+                        <p class="text-muted">Add nodes and arcs to see the network</p>
+                    </div>
+                    <img id="graph-image" style="display:none;">
+                </div>
+                
+                <div class="results" id="results" style="display:none;">
+                    <h5>Results</h5>
+                    <p>Maximum Flow: <span id="max-flow-value" class="fw-bold"></span></p>
+                    <h6>Flow Values:</h6>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>From</th>
+                                <th>To</th>
+                                <th>Flow</th>
+                                <th>Capacity</th>
+                                <th>Utilization</th>
+                            </tr>
+                        </thead>
+                        <tbody id="flow-table">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Mathematical Formulation</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="math-section">
+                            <h4>The Maximum Flow Problem</h4>
+                            <p>
+                                The maximum flow problem involves finding the maximum amount of flow that can be sent from a source node to a sink node through a network with capacity constraints on the arcs.
+                            </p>
+                            
+                            <h5 class="mt-4">Problem Definition</h5>
+                            <p>
+                                Given a directed graph \(G = (N, A)\) where:
+                            </p>
+                            <ul>
+                                <li>\(N\) is the set of nodes</li>
+                                <li>\(A\) is the set of arcs</li>
+                                <li>\(c_{ij}\) is the capacity of arc \((i,j) \in A\)</li>
+                                <li>\(s\) is the source node</li>
+                                <li>\(t\) is the sink node</li>
+                            </ul>
+                            
+                            <h5 class="mt-4">Decision Variables</h5>
+                            <p>
+                                \(x_{ij}\) = flow on arc \((i,j) \in A\)
+                            </p>
+                            
+                            <h5 class="mt-4">Objective Function</h5>
+                            <div class="equation-box">
+                                <p>Maximize \(z = \sum_{j \in N} x_{sj} - \sum_{j \in N} x_{js}\)</p>
+                                <p>This represents the net flow out of the source node \(s\).</p>
+                            </div>
+                            
+                            <h5 class="mt-4">Constraints</h5>
+                            
+                            <div class="equation-box">
+                                <p><strong>Capacity Constraints:</strong></p>
+                                <p>\(0 \leq x_{ij} \leq c_{ij} \quad \forall (i,j) \in A\)</p>
+                                <p>The flow on each arc cannot exceed its capacity.</p>
+                            </div>
+                            
+                            <div class="equation-box">
+                                <p><strong>Flow Conservation Constraints:</strong></p>
+                                <p>\(\sum_{j \in N} x_{ij} = \sum_{j \in N} x_{ji} \quad \forall i \in N \setminus \{s,t\}\)</p>
+                                <p>For all nodes except the source and sink, the total flow in equals the total flow out.</p>
+                            </div>
+                            
+                            <h5 class="mt-4">Your Current Problem Formulation</h5>
+                            <div id="problem-formulation">
+                                <p>For the network you've defined:</p>
+                                
+                                <div class="equation-box">
+                                    <p><strong>Sets:</strong></p>
+                                    <p>Nodes \(N = \{<span id="nodes-set"></span>\}\)</p>
+                                    <p>Arcs \(A = \{<span id="arcs-set"></span>\}\)</p>
+                                    <p>Source node \(s = <span id="source-node-eq"></span>\)</p>
+                                    <p>Sink node \(t = <span id="sink-node-eq"></span>\)</p>
+                                </div>
+                                
+                                <div class="equation-box">
+                                    <p><strong>Capacities:</strong></p>
+                                    <div id="capacities-list"></div>
+                                </div>
+                                
+                                <div class="equation-box">
+                                    <p><strong>Objective Function:</strong></p>
+                                    <p>Maximize \(z = <span id="objective-function"></span>\)</p>
+                                </div>
+                                
+                                <div class="equation-box">
+                                    <p><strong>Flow Conservation Constraints:</strong></p>
+                                    <div id="conservation-constraints"></div>
+                                </div>
+                                
+                                <div class="equation-box">
+                                    <p><strong>Capacity Constraints:</strong></p>
+                                    <div id="capacity-constraints"></div>
+                                </div>
+                                
+                                <div class="equation-box">
+                                    <p><strong>Non-negativity Constraints:</strong></p>
+                                    <p>\(x_{ij} \geq 0 \quad \forall (i,j) \in A\)</p>
+                                </div>
+                                
+                                <h5 class="mt-4">Solution</h5>
+                                <div id="solution-equations"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('add-node').addEventListener('click', function() {
+                const nodesContainer = document.getElementById('nodes-container');
+                const newRow = document.createElement('div');
+                newRow.className = 'node-row d-flex';
+                newRow.innerHTML = `
+                    <input type="text" class="form-control node-input" placeholder="Node name">
+                    <button class="btn btn-sm btn-danger ms-2 remove-node">✕</button>
+                `;
+                nodesContainer.appendChild(newRow);
+                
+                newRow.querySelector('.remove-node').addEventListener('click', function() {
+                    nodesContainer.removeChild(newRow);
+                    updateNodeSelects();
+                });
+                
+                newRow.querySelector('.node-input').addEventListener('input', updateNodeSelects);
+                
+                updateNodeSelects();
+            });
+            
+            document.getElementById('add-arc').addEventListener('click', function() {
+                const arcsContainer = document.getElementById('arcs-container');
+                const newRow = document.createElement('div');
+                newRow.className = 'arc-row d-flex';
+                newRow.innerHTML = `
+                    <select class="form-select source-select me-2"></select>
+                    <select class="form-select target-select me-2"></select>
+                    <input type="number" class="form-control capacity-input" placeholder="Capacity" min="0" value="1">
+                    <button class="btn btn-sm btn-danger ms-2 remove-arc">✕</button>
+                `;
+                arcsContainer.appendChild(newRow);
+                
+                newRow.querySelector('.remove-arc').addEventListener('click', function() {
+                    arcsContainer.removeChild(newRow);
+                });
+                
+                updateNodeSelects();
+            });
+            
+            function updateNodeSelects() {
+                const nodes = getNodes();
+                
+                document.querySelectorAll('.source-select').forEach(select => {
+                    const currentValue = select.value;
+                    select.innerHTML = '';
+                    nodes.forEach(node => {
+                        const option = document.createElement('option');
+                        option.value = node;
+                        option.textContent = node;
+                        select.appendChild(option);
+                    });
+                    if (nodes.includes(currentValue)) {
+                        select.value = currentValue;
+                    }
+                });
+                
+                document.querySelectorAll('.target-select').forEach(select => {
+                    const currentValue = select.value;
+                    select.innerHTML = '';
+                    nodes.forEach(node => {
+                        const option = document.createElement('option');
+                        option.value = node;
+                        option.textContent = node;
+                        select.appendChild(option);
+                    });
+                    if (nodes.includes(currentValue)) {
+                        select.value = currentValue;
+                    }
+                });
+                
+                const sourceSelect = document.getElementById('source-node');
+                const currentSourceValue = sourceSelect.value;
+                sourceSelect.innerHTML = '';
+                nodes.forEach(node => {
+                    const option = document.createElement('option');
+                    option.value = node;
+                    option.textContent = node;
+                    sourceSelect.appendChild(option);
+                });
+                if (nodes.includes(currentSourceValue)) {
+                    sourceSelect.value = currentSourceValue;
+                }
+                
+                const sinkSelect = document.getElementById('sink-node');
+                const currentSinkValue = sinkSelect.value;
+                sinkSelect.innerHTML = '';
+                nodes.forEach(node => {
+                    const option = document.createElement('option');
+                    option.value = node;
+                    option.textContent = node;
+                    sinkSelect.appendChild(option);
+                });
+                if (nodes.includes(currentSinkValue)) {
+                    sinkSelect.value = currentSinkValue;
+                }
+            }
+            
+            function getNodes() {
+                const nodeInputs = document.querySelectorAll('.node-input');
+                const nodes = [];
+                nodeInputs.forEach(input => {
+                    if (input.value.trim() !== '') {
+                        nodes.push(input.value.trim());
+                    }
+                });
+                return nodes;
+            }
+            
+            function getArcs() {
+                const arcRows = document.querySelectorAll('.arc-row');
+                const arcs = [];
+                arcRows.forEach(row => {
+                    const source = row.querySelector('.source-select').value;
+                    const target = row.querySelector('.target-select').value;
+                    const capacity = parseInt(row.querySelector('.capacity-input').value) || 0;
+                    if (source && target && capacity > 0) {
+                        arcs.push([source, target, capacity]);
+                    }
+                });
+                return arcs;
+            }
+            
+            function updateMathFormulation(nodes, arcs, source, sink, flowValues) {
+                document.getElementById('problem-formulation').style.display = 'block';
+                
+                document.getElementById('nodes-set').textContent = nodes.join(', ');
+                
+                const arcsText = arcs.map(arc => `(${arc[0]}, ${arc[1]})`).join(', ');
+                document.getElementById('arcs-set').textContent = arcsText;
+                
+                document.getElementById('source-node-eq').textContent = source;
+                document.getElementById('sink-node-eq').textContent = sink;
+                
+                const capacitiesList = document.getElementById('capacities-list');
+                capacitiesList.innerHTML = '';
+                arcs.forEach(arc => {
+                    const p = document.createElement('p');
+                    p.innerHTML = `\\(c_{${arc[0]}${arc[1]}} = ${arc[2]}\\)`;
+                    capacitiesList.appendChild(p);
+                });
+                
+                const outArcs = arcs.filter(arc => arc[0] === source);
+                const objectiveTerms = outArcs.map(arc => `x_{${arc[0]}${arc[1]}}`);
+                document.getElementById('objective-function').textContent = objectiveTerms.join(' + ');
+                
+                const conservationConstraints = document.getElementById('conservation-constraints');
+                conservationConstraints.innerHTML = '';
+                
+                nodes.forEach(node => {
+                    if (node !== source && node !== sink) {
+                        const inArcs = arcs.filter(arc => arc[1] === node);
+                        const outArcs = arcs.filter(arc => arc[0] === node);
+                        
+                        const inTerms = inArcs.map(arc => `x_{${arc[0]}${arc[1]}}`);
+                        const outTerms = outArcs.map(arc => `x_{${arc[0]}${arc[1]}}`);
+                        
+                        const p = document.createElement('p');
+                        p.innerHTML = `For node ${node}: \\(${inTerms.join(' + ')} = ${outTerms.join(' + ')}\\)`;
+                        conservationConstraints.appendChild(p);
+                    }
+                });
+                
+                const capacityConstraints = document.getElementById('capacity-constraints');
+                capacityConstraints.innerHTML = '';
+                
+                arcs.forEach(arc => {
+                    const p = document.createElement('p');
+                    p.innerHTML = `\\(x_{${arc[0]}${arc[1]}} \\leq ${arc[2]}\\)`;
+                    capacityConstraints.appendChild(p);
+                });
+                
+                if (flowValues) {
+                    const solutionEquations = document.getElementById('solution-equations');
+                    solutionEquations.innerHTML = '';
+                    
+                    const maxFlowP = document.createElement('p');
+                    maxFlowP.innerHTML = `<strong>Maximum Flow Value:</strong> \\(z^* = ${flowValues.maxFlow}\\)`;
+                    solutionEquations.appendChild(maxFlowP);
+                    
+                    const optimalFlowsP = document.createElement('p');
+                    optimalFlowsP.innerHTML = '<strong>Optimal Flow Values:</strong>';
+                    solutionEquations.appendChild(optimalFlowsP);
+                    
+                    flowValues.flows.forEach(flow => {
+                        const p = document.createElement('p');
+                        p.innerHTML = `\\(x_{${flow[0]}${flow[1]}}^* = ${flow[2].toFixed(2)}\\)`;
+                        solutionEquations.appendChild(p);
+                    });
+                }
+                
+                if (window.MathJax) {
+                    MathJax.typesetPromise();
+                }
+            }
+            
+            document.getElementById('solve-button').addEventListener('click', function() {
+                const nodes = getNodes();
+                const arcs = getArcs();
+                const source = document.getElementById('source-node').value;
+                const sink = document.getElementById('sink-node').value;
+                
+                document.getElementById('results').style.display = 'none';
+                document.getElementById('error-message').style.display = 'none';
+                
+                if (nodes.length < 2) {
+                    showError("Please add at least two nodes");
+                    return;
+                }
+                
+                if (arcs.length === 0) {
+                    showError("Please add at least one arc");
+                    return;
+                }
+                
+                if (!source || !sink) {
+                    showError("Please select source and sink nodes");
+                    return;
+                }
+                
+                if (source === sink) {
+                    showError("Source and sink nodes must be different");
+                    return;
+                }
+                
+                document.getElementById('loading').style.display = 'block';
+                
+                updateMathFormulation(nodes, arcs, source, sink);
+                
+                fetch('/solve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        nodes: nodes,
+                        arcs: arcs,
+                        source: source,
+                        sink: sink
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('loading').style.display = 'none';
+                    
+                    if (data.error) {
+                        showError(data.error);
+                        return;
+                    }
+                    
+                    document.getElementById('initial-graph').style.display = 'none';
+                    document.getElementById('graph-image').src = 'data:image/png;base64,' + data.graph_image;
+                    document.getElementById('graph-image').style.display = 'block';
+                    
+                    document.getElementById('max-flow-value').textContent = data.max_flow.toFixed(2);
+                    
+                    const flowTable = document.getElementById('flow-table');
+                    flowTable.innerHTML = '';
+                    data.flow_values.forEach((flow, index) => {
+                        const row = document.createElement('tr');
+                        const arcData = arcs.find(a => a[0] === flow[0] && a[1] === flow[1]);
+                        const capacity = arcData ? arcData[2] : 0;
+                        const utilization = (flow[2] / capacity * 100).toFixed(1);
+                        
+                        row.innerHTML = `
+                            <td>${flow[0]}</td>
+                            <td>${flow[1]}</td>
+                            <td>${flow[2].toFixed(2)}</td>
+                            <td>${capacity}</td>
+                            <td>${utilization}%</td>
+                        `;
+                        flowTable.appendChild(row);
+                    });
+                    
+                    document.getElementById('results').style.display = 'block';
+                    
+                    updateMathFormulation(nodes, arcs, source, sink, {
+                        maxFlow: data.max_flow,
+                        flows: data.flow_values
+                    });
+                })
+                .catch(error => {
+                    document.getElementById('loading').style.display = 'none';
+                    showError("An error occurred: " + error.message);
+                });
+            });
+            
+            function showError(message) {
+                const errorElement = document.getElementById('error-message');
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+            }
+            
+            ['A', 'B', 'C', 'D'].forEach(nodeName => {
+                const nodesContainer = document.getElementById('nodes-container');
+                const newRow = document.createElement('div');
+                newRow.className = 'node-row d-flex';
+                newRow.innerHTML = `
+                    <input type="text" class="form-control node-input" placeholder="Node name" value="${nodeName}">
+                    <button class="btn btn-sm btn-danger ms-2 remove-node">✕</button>
+                `;
+                nodesContainer.appendChild(newRow);
+                
+                newRow.querySelector('.remove-node').addEventListener('click', function() {
+                    nodesContainer.removeChild(newRow);
+                    updateNodeSelects();
+                });
+                
+                newRow.querySelector('.node-input').addEventListener('input', updateNodeSelects);
+            });
+            
+            [['A', 'B', 10], ['A', 'C', 5], ['B', 'C', 15], ['B', 'D', 10], ['C', 'D', 10]].forEach(arc => {
+                const arcsContainer = document.getElementById('arcs-container');
+                const newRow = document.createElement('div');
+                newRow.className = 'arc-row d-flex';
+                newRow.innerHTML = `
+                    <select class="form-select source-select me-2"></select>
+                    <select class="form-select target-select me-2"></select>
+                    <input type="number" class="form-control capacity-input" placeholder="Capacity" min="0" value="${arc[2]}">
+                    <button class="btn btn-sm btn-danger ms-2 remove-arc">✕</button>
+                `;
+                arcsContainer.appendChild(newRow);
+                
+                newRow.querySelector('.remove-arc').addEventListener('click', function() {
+                    arcsContainer.removeChild(newRow);
+                });
+            });
+            
+            updateNodeSelects();
+        });
+    </script>
+</body>
+</html> 
